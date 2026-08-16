@@ -1,0 +1,6 @@
+order_id,customer_email,customer_name,order_date,status,shipped_date,delivered_date,estimated_delivery,items,shipping_method,tracking_number,carrier,total,return_window_days,cancellation_reason
+BK-10021,jane.doe@example.com,Jane Doe,2026-08-05,delivered,,2026-08-09,,"The Midnight Library by Matt Haig x1 @19.99; Project Hail Mary by Andy Weir x1 @22.50",Standard (3-5 business days),AUPOST-88213741,Australia Post,42.49,30,
+BK-10022,mchen88@example.com,Michael Chen,2026-08-12,shipped,2026-08-13,,2026-08-18,Fourth Wing by Rebecca Yarros x2 @24.99,Express (1-2 business days),AUPOST-77120983,Australia Post,49.98,30,
+BK-10023,jane.doe@example.com,Jane Doe,2026-08-14,processing,,,,Atomic Habits by James Clear x1 @21.00,Standard (3-5 business days),,,21.00,30,
+BK-10018,priya.k@example.com,Priya Kapoor,2026-06-30,delivered,,2026-07-04,,"Sapiens by Yuval Noah Harari x1 @25.00; Educated by Tara Westover x1 @20.00",Standard (3-5 business days),AUPOST-65029981,Australia Post,45.00,30,
+BK-10024,mchen88@example.com,Michael Chen,2026-08-15,cancelled,,,,The Hobbit by J.R.R. Tolkien x1 @18.00,Standard (3-5 business days),,,18.00,30,Customer requested cancellation before dispatch

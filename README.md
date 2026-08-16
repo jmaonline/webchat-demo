@@ -23,15 +23,19 @@ backend/
     account_tools.py   - password reset initiation
     data_store.py       - mock data access layer (swap point for real systems)
   mock_data/
-    orders.json, customers.json, policy_kb.md
+    orders.json, customers.json, policy_kb.md   - local fallback data
+    sheets_export/                              - CSVs to import into Google Sheets (optional)
 frontend/
   widget.html         - standalone embeddable chat widget (open directly in a browser)
+  admin.html           - staff admin page for approving/denying return requests
 tests/
-  test_tools.py        - unit tests for all backend tool functions (no API key needed)
-  test_agent_loop.py   - tests the tool-use loop logic with a stubbed Claude client
-  test_api.py           - tests the FastAPI endpoints
+  test_tools.py            - unit tests for all backend tool functions (no API key needed)
+  test_agent_loop.py       - tests the tool-use loop logic with a stubbed Claude client
+  test_api.py               - tests the FastAPI endpoints
+  test_data_store_sheets.py - tests the Google Sheets CSV parsing + fallback logic
 docs/
-  ARCHITECTURE.md      - full design doc
+  ARCHITECTURE.md          - full design doc
+  GOOGLE_SHEETS_SETUP.md   - optional: point test data at a Google Sheet instead of local JSON
 ```
 
 ## Setup
@@ -49,7 +53,7 @@ export ANTHROPIC_API_KEY=sk-ant-...   # or `source .env` with your own loader
 pytest tests/ -v
 ```
 
-All 32 tests should pass — they cover the mock backend tools, the
+All 41 tests should pass — they cover the mock backend tools, the
 approval-queue human-in-the-loop flow, the agent's tool-dispatch loop
 (against a stubbed Claude client, so no API calls/cost), and the FastAPI
 endpoints.
@@ -108,6 +112,14 @@ curl -X POST http://localhost:8000/api/admin/approvals/RT-5100/deny \
 In a real deployment, wire these into whatever tool your support team
 already lives in (a Zendesk view, an internal admin dashboard, etc.)
 instead of raw curl calls.
+
+## Using Google Sheets for test data (optional)
+
+By default order/customer/return data comes from the local JSON files. You
+can instead point it at a Google Sheet (handy for editing test orders
+without touching code) — see
+[`docs/GOOGLE_SHEETS_SETUP.md`](docs/GOOGLE_SHEETS_SETUP.md). CSVs ready to
+import are in `backend/mock_data/sheets_export/`.
 
 ## Next steps toward production
 

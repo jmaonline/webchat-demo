@@ -1,0 +1,2 @@
+return_id,order_id,item_title,status,requested_date,resolved_date,resolution,refund_amount
+RT-5001,BK-10018,Educated,completed,2026-07-10,2026-07-14,refunded,20.00

@@ -179,8 +179,6 @@
   #chat-send { background: var(--brand); color: white; border: none; border-radius: 999px; padding: 0 18px; font-size: 14px; cursor: pointer; }
   #chat-send:hover { background: var(--brand-dark); }
   #chat-send:disabled { opacity: 0.5; cursor: default; }
-  #config-bar { padding: 8px 12px; background: #fffbe6; border-bottom: 1px solid #f0e6b0; font-size: 11px; color: #7a6a1a; }
-  #config-bar input { width: 100%; font-size: 11px; padding: 3px 6px; margin-top: 3px; box-sizing: border-box; }
 </style>
 </head>
 <body>
@@ -217,10 +215,7 @@
 <button id="chat-launcher" aria-label="Open support chat">💬</button>
 
 <div id="chat-panel">
-  <div id="config-bar">
-    Backend URL:
-    <input id="backend-url" type="text" value="" />
-  </div>
+  <input id="backend-url" type="hidden" />
   <div id="chat-header">
     <div>
       <div class="title">Bucky · Bookly Support</div>

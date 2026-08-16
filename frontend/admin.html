@@ -210,13 +210,13 @@
 
 <main>
   <div id="token-gate">
-    <label for="token-input">Admin token</label>
+    <label for="token-input">Admin Password</label>
     <div class="row">
-      <input id="token-input" type="password" placeholder="Enter your ADMIN_API_TOKEN" autocomplete="off" />
+      <input id="token-input" type="password" placeholder="Enter your admin password" autocomplete="off" />
       <button id="token-connect">Connect</button>
     </div>
     <div class="hint">
-      This is the <code>ADMIN_API_TOKEN</code> value you set in Render's environment variables.
+      This is the same value you set as <code>ADMIN_API_TOKEN</code> in Render's environment variables.
       It's kept in this browser tab only (never stored), and sent as a header with each request.
       Backend URL: <input id="backend-url" type="text" style="width:auto; padding:2px 6px; font-size:12px;" />
     </div>
@@ -324,7 +324,7 @@
     try {
       const res = await apiFetch('/api/admin/approvals');
       if (res.status === 401) {
-        tokenStatus.textContent = 'Invalid token — check ADMIN_API_TOKEN in Render and try again.';
+        tokenStatus.textContent = 'Incorrect password — check ADMIN_API_TOKEN in Render and try again.';
         tokenStatus.className = 'err';
         app.style.display = 'none';
         return;

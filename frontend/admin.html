@@ -177,8 +177,28 @@
     margin-bottom: 12px;
   }
 
+  .session-card { cursor: pointer; }
+  .session-id { font-weight: 700; font-size: 13.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .session-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .session-expand-hint { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+  .transcript {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+    cursor: default;
+  }
+  .transcript.open { display: flex; }
+  .transcript-msg { max-width: 85%; padding: 8px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+  .transcript-msg.user { align-self: flex-end; background: var(--brand); color: white; }
+  .transcript-msg.agent { align-self: flex-start; background: #f1f0ec; color: var(--text); }
+  .transcript-msg.tool { align-self: center; background: transparent; color: var(--muted); font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; max-width: 100%; text-align: center; }
+
   #app { display: none; }
   #orders-view { display: none; }
+  #sessions-view { display: none; }
 </style>
 </head>
 <body>
@@ -207,6 +227,7 @@
     <div class="view-tabs">
       <button data-view="returns" class="active">Return Requests</button>
       <button data-view="orders">Orders</button>
+      <button data-view="sessions">Sessions</button>
     </div>
 
     <div id="returns-view">
@@ -232,6 +253,17 @@
       </div>
       <div id="orders-list"></div>
     </div>
+
+    <div id="sessions-view">
+      <div class="data-source-note">
+        Chat transcripts, saved automatically when Postgres persistence is configured (<code>DATABASE_URL</code> — see the README's "Chat session persistence" section). Click a session to expand its transcript.
+      </div>
+      <div class="toolbar">
+        <span></span>
+        <button class="refresh" id="refresh-sessions-btn">↻ Refresh</button>
+      </div>
+      <div id="sessions-list"></div>
+    </div>
   </div>
 </main>
 
@@ -246,6 +278,7 @@
   const viewTabButtons = document.querySelectorAll('.view-tabs button');
   const returnsView = document.getElementById('returns-view');
   const ordersView = document.getElementById('orders-view');
+  const sessionsView = document.getElementById('sessions-view');
 
   const returnsListEl = document.getElementById('returns-list');
   const refreshReturnsBtn = document.getElementById('refresh-returns-btn');
@@ -255,9 +288,14 @@
   const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
   const ordersSearchInput = document.getElementById('orders-search');
 
+  const sessionsListEl = document.getElementById('sessions-list');
+  const refreshSessionsBtn = document.getElementById('refresh-sessions-btn');
+
   let adminToken = null;
   let currentFilter = 'pending';
   let allOrders = [];
+  let sessionsLoaded = false;
+  const transcriptCache = new Map();
 
   backendUrlInput.value =
     window.location.protocol === 'file:' ? 'http://localhost:8000' : window.location.origin;
@@ -306,7 +344,7 @@
   tokenConnect.addEventListener('click', connect);
   tokenInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
 
-  // ---- view switching (Return Requests vs Orders) ----
+  // ---- view switching (Return Requests vs Orders vs Sessions) ----
   viewTabButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       viewTabButtons.forEach((b) => b.classList.remove('active'));
@@ -314,7 +352,9 @@
       const view = btn.dataset.view;
       returnsView.style.display = view === 'returns' ? 'block' : 'none';
       ordersView.style.display = view === 'orders' ? 'block' : 'none';
+      sessionsView.style.display = view === 'sessions' ? 'block' : 'none';
       if (view === 'orders' && allOrders.length === 0) loadOrders();
+      if (view === 'sessions' && !sessionsLoaded) { sessionsLoaded = true; loadSessions(); }
     });
   });
 
@@ -483,6 +523,104 @@
       applyOrdersSearch();
     } catch (err) {
       ordersListEl.innerHTML = `<div class="empty-state">Failed to load: ${err.message}</div>`;
+    }
+  }
+
+  // ---- Sessions view (chat transcripts, requires Postgres persistence) ----
+  function transcriptRoleLabel(role) {
+    return role === 'user' ? 'Customer' : 'Bucky';
+  }
+
+  function appendTranscriptText(container, role, text) {
+    const div = document.createElement('div');
+    div.className = 'transcript-msg ' + (role === 'user' ? 'user' : 'agent');
+    div.textContent = transcriptRoleLabel(role) + ': ' + text;
+    container.appendChild(div);
+  }
+
+  function appendTranscriptTool(container, text) {
+    const div = document.createElement('div');
+    div.className = 'transcript-msg tool';
+    div.textContent = text;
+    container.appendChild(div);
+  }
+
+  function renderTranscript(container, messages) {
+    container.innerHTML = '';
+    (messages || []).forEach((msg) => {
+      const content = msg.content;
+      if (typeof content === 'string') {
+        appendTranscriptText(container, msg.role, content);
+        return;
+      }
+      (content || []).forEach((block) => {
+        if (block.type === 'text') {
+          appendTranscriptText(container, msg.role, block.text);
+        } else if (block.type === 'tool_use') {
+          appendTranscriptTool(container, `🔧 Bucky called ${block.name}(${JSON.stringify(block.input)})`);
+        } else if (block.type === 'tool_result') {
+          let resultText = block.content;
+          try { resultText = JSON.stringify(JSON.parse(block.content)); } catch { /* keep raw */ }
+          appendTranscriptTool(container, `↩ tool result: ${resultText}`);
+        }
+      });
+    });
+    if (!container.children.length) {
+      container.innerHTML = '<div class="empty-state" style="padding:14px 0;">No messages.</div>';
+    }
+  }
+
+  function renderSessionCard(session) {
+    const div = document.createElement('div');
+    div.className = 'session-card req-card'; // req-card gives the same card chrome (border/padding/spacing)
+    div.innerHTML = `
+      <div class="session-id">${session.session_id}</div>
+      <div class="session-meta">${session.message_count} message${session.message_count === 1 ? '' : 's'} · started ${fmtDate(session.created_at)} · last active ${fmtDate(session.updated_at)}</div>
+      <div class="session-expand-hint">Click to view transcript ▾</div>
+      <div class="transcript"></div>
+    `;
+    const transcriptEl = div.querySelector('.transcript');
+    div.addEventListener('click', async () => {
+      transcriptEl.classList.toggle('open');
+      if (!transcriptEl.classList.contains('open')) return;
+      if (transcriptCache.has(session.session_id)) {
+        renderTranscript(transcriptEl, transcriptCache.get(session.session_id));
+        return;
+      }
+      transcriptEl.innerHTML = '<div class="empty-state" style="padding:14px 0;">Loading…</div>';
+      try {
+        const res = await apiFetch(`/api/admin/sessions/${session.session_id}`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        transcriptCache.set(session.session_id, data.messages);
+        renderTranscript(transcriptEl, data.messages);
+      } catch (err) {
+        transcriptEl.innerHTML = `<div class="empty-state">Failed to load transcript: ${err.message}</div>`;
+      }
+    });
+    return div;
+  }
+
+  function renderSessionsList(sessions) {
+    sessionsListEl.innerHTML = '';
+    if (!sessions.length) {
+      sessionsListEl.innerHTML = '<div class="empty-state">No sessions yet — or Postgres persistence isn\'t configured (<code>DATABASE_URL</code>). See the README\'s "Chat session persistence" section.</div>';
+      return;
+    }
+    sessions.forEach((s) => sessionsListEl.appendChild(renderSessionCard(s)));
+  }
+
+  refreshSessionsBtn.addEventListener('click', loadSessions);
+
+  async function loadSessions() {
+    sessionsListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    try {
+      const res = await apiFetch('/api/admin/sessions');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      renderSessionsList(data.sessions || []);
+    } catch (err) {
+      sessionsListEl.innerHTML = `<div class="empty-state">Failed to load: ${err.message}</div>`;
     }
   }
 })();

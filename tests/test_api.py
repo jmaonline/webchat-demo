@@ -78,6 +78,7 @@ def test_admin_ui_served():
     assert res.status_code == 200
     assert "text/html" in res.headers["content-type"]
     assert "Support Admin" in res.text
+    assert "Sessions" in res.text  # sessions tab, backed by /api/admin/sessions
 
 
 def test_admin_endpoints_require_token_when_configured(monkeypatch):

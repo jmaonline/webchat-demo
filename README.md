@@ -28,7 +28,7 @@ backend/
     sheets_export/                              - CSVs to import into Google Sheets (optional)
 frontend/
   widget.html         - main site (Help Center landing page + chat), served at /
-  admin.html          - staff admin page for approving/denying return requests + browsing orders
+  admin.html          - staff admin page: approve/deny returns, browse orders, review chat session transcripts
   embed-widget.html   - bare chat bubble+panel (no landing page), served at /embed
   embed.js            - drop-in <script> loader for embedding the widget on any other site
 tests/
@@ -133,7 +133,13 @@ See [`docs/EMBEDDING.md`](docs/EMBEDDING.md) for how it works and
 By default, chat sessions live only in server memory — they're lost if the
 process restarts, and there's no record of past conversations. Setting
 `DATABASE_URL` turns on Postgres persistence: every turn is saved, so a
-conversation survives a restart and staff can review transcripts:
+conversation survives a restart and staff can review transcripts.
+
+Easiest way to see it: open `/admin`, connect with your `ADMIN_API_TOKEN`,
+and click the **Sessions** tab — it lists recent conversations (message
+count, started/last-active times) and expands into the full transcript
+(including tool calls) when you click one. Same data is available directly
+via the API if you'd rather script against it:
 
 ```bash
 # Recent sessions (id, timestamps, message count)

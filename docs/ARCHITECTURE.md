@@ -113,8 +113,8 @@ in `SupportAgent.send()`).
 It currently covers two different kinds of instruction, worth telling
 apart when editing:
 
-**Personality / tone** — currently just the opening line ("You are the
-customer support agent for Bookly...") plus rule 7 ("Be warm, concise, and
+**Personality / tone** — currently just the opening line ("You are Bucky,
+the customer support agent for Bookly...") plus rule 7 ("Be warm, concise, and
 professional..."). This is the thin part today — if you want a more
 distinct voice (more playful, more formal, book-nerd asides, a specific
 greeting style, etc.), this is what to flesh out. Keep it short and

@@ -25,7 +25,7 @@ def main():
         sys.exit(1)
 
     agent = SupportAgent()
-    print("Bookly Support (Ctrl-C to quit)")
+    print("Bucky · Bookly Support (Ctrl-C to quit)")
     print("-" * 50)
     try:
         while True:

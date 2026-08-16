@@ -26,16 +26,20 @@ backend/
     orders.json, customers.json, policy_kb.md   - local fallback data
     sheets_export/                              - CSVs to import into Google Sheets (optional)
 frontend/
-  widget.html         - standalone embeddable chat widget (open directly in a browser)
-  admin.html           - staff admin page for approving/denying return requests
+  widget.html         - main site (Help Center landing page + chat), served at /
+  admin.html          - staff admin page for approving/denying return requests + browsing orders
+  embed-widget.html   - bare chat bubble+panel (no landing page), served at /embed
+  embed.js            - drop-in <script> loader for embedding the widget on any other site
 tests/
   test_tools.py            - unit tests for all backend tool functions (no API key needed)
   test_agent_loop.py       - tests the tool-use loop logic with a stubbed Claude client
-  test_api.py               - tests the FastAPI endpoints
+  test_api.py               - tests the FastAPI endpoints (including /embed, /embed.js)
   test_data_store_sheets.py - tests the Google Sheets CSV parsing + fallback logic
 docs/
   ARCHITECTURE.md          - full design doc
   GOOGLE_SHEETS_SETUP.md   - optional: point test data at a Google Sheet instead of local JSON
+  EMBEDDING.md             - how to embed the widget on any other website
+  embed-demo.html           - example of the widget embedded on a fake unrelated site
 ```
 
 ## Setup
@@ -53,7 +57,7 @@ export ANTHROPIC_API_KEY=sk-ant-...   # or `source .env` with your own loader
 pytest tests/ -v
 ```
 
-All 44 tests should pass — they cover the mock backend tools, the
+All 46 tests should pass — they cover the mock backend tools, the
 approval-queue human-in-the-loop flow, the agent's tool-dispatch loop
 (against a stubbed Claude client, so no API calls/cost), and the FastAPI
 endpoints.
@@ -112,6 +116,13 @@ curl -X POST http://localhost:8000/api/admin/approvals/RT-5100/deny \
 In a real deployment, wire these into whatever tool your support team
 already lives in (a Zendesk view, an internal admin dashboard, etc.)
 instead of raw curl calls.
+
+## Embedding the widget on any website
+
+Drop the chat widget onto any external site with one line:
+`<script src="https://<your-app>.onrender.com/embed.js" async></script>`.
+See [`docs/EMBEDDING.md`](docs/EMBEDDING.md) for how it works and
+`docs/embed-demo.html` for a working example on a fake unrelated site.
 
 ## Using Google Sheets for test data (optional)
 

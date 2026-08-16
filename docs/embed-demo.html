@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Some Totally Unrelated Website — Embed Demo</title>
+<style>
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    margin: 0;
+    background: #1a1a2e;
+    color: #eaeaea;
+    padding: 60px 24px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 32px; }
+  p { line-height: 1.6; color: #c9c9d8; }
+  .note {
+    margin-top: 40px;
+    padding: 18px 20px;
+    background: #26263f;
+    border-radius: 10px;
+    font-family: -apple-system, sans-serif;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  code { background: #0f0f1e; padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Wandering Star Records</h1>
+  <p>
+    This page has nothing to do with Bookly — it's deliberately a different
+    "brand," different fonts, different colors — to prove the chat widget
+    embeds cleanly on any site without clashing with the host page's design.
+  </p>
+  <p>
+    Look for the chat bubble in the bottom-right corner. It's running inside
+    an isolated iframe, so none of this page's CSS can touch it (and it
+    can't touch this page's CSS either).
+  </p>
+
+  <div class="note">
+    <strong>How this demo works:</strong> the only Bookly-related thing on
+    this whole page is one line before <code>&lt;/body&gt;</code>:
+    <br /><br />
+    <code>&lt;script src="https://YOUR-APP.onrender.com/embed.js" async&gt;&lt;/script&gt;</code>
+    <br /><br />
+    Before opening this file, replace <code>YOUR-APP</code> below with your
+    actual Render URL (or <code>http://localhost:8000</code> if testing
+    against a locally running backend).
+  </div>
+</div>
+
+<!-- ↓↓↓ This is the entire integration. One line. ↓↓↓ -->
+<script src="http://localhost:8000/embed.js" async></script>
+
+</body>
+</html>

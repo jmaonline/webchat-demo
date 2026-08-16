@@ -113,3 +113,22 @@ def test_admin_orders_endpoint_requires_token_when_configured(monkeypatch):
 
     res = client.get("/api/admin/orders", headers={"X-Admin-Token": "s3cret"})
     assert res.status_code == 200
+
+
+def test_embed_widget_served():
+    res = client.get("/embed")
+    assert res.status_code == 200
+    assert "text/html" in res.headers["content-type"]
+    assert "chat-launcher" in res.text
+    # The bare embed page must NOT include the landing-page chrome —
+    # it's meant to be just the bubble+panel inside an iframe.
+    assert "quick-links" not in res.text
+    assert "Help Center" not in res.text
+
+
+def test_embed_js_served_with_correct_content_type():
+    res = client.get("/embed.js")
+    assert res.status_code == 200
+    assert "javascript" in res.headers["content-type"]
+    assert "bookly-widget" in res.text
+    assert "/embed" in res.text

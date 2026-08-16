@@ -1,6 +1,8 @@
 """
 FastAPI backend exposing:
   GET  /                                  - the chat widget itself (self-hosted)
+  GET  /embed                             - bare chat bubble+panel, loaded in an iframe by /embed.js
+  GET  /embed.js                          - drop-in <script> loader for embedding the widget on any site
   POST /api/chat                          - customer-facing chat endpoint
   GET  /api/admin/approvals               - list pending/all approval requests
   POST /api/admin/approvals/{id}/approve  - human approves a return/refund
@@ -54,6 +56,8 @@ _SESSIONS: dict[str, SupportAgent] = {}
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 _WIDGET_PATH = _FRONTEND_DIR / "widget.html"
 _ADMIN_PATH = _FRONTEND_DIR / "admin.html"
+_EMBED_WIDGET_PATH = _FRONTEND_DIR / "embed-widget.html"
+_EMBED_JS_PATH = _FRONTEND_DIR / "embed.js"
 
 
 def require_admin(x_admin_token: str | None = Header(default=None, alias="X-Admin-Token")) -> None:
@@ -92,6 +96,27 @@ def admin_ui():
     on each API call, which is what actually enforces access control.
     """
     return FileResponse(_ADMIN_PATH)
+
+
+@app.get("/embed")
+def embed_widget():
+    """
+    Bare chat bubble+panel, no landing-page chrome — this is what
+    /embed.js loads inside an iframe on third-party sites. Not meant to
+    be visited directly (though nothing bad happens if you do).
+    """
+    return FileResponse(_EMBED_WIDGET_PATH)
+
+
+@app.get("/embed.js")
+def embed_js():
+    """
+    Drop-in loader script for embedding the chat widget on ANY website:
+        <script src="https://<this-app>/embed.js" async></script>
+    Injects a floating iframe pointing at /embed and resizes it between
+    bubble/panel size via postMessage. See frontend/embed.js for details.
+    """
+    return FileResponse(_EMBED_JS_PATH, media_type="application/javascript")
 
 
 @app.post("/api/chat", response_model=ChatResponse)

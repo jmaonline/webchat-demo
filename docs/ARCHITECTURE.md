@@ -1,10 +1,10 @@
-# Bookstore Customer Support Agent — Architecture
+# Bookly Customer Support Agent — Architecture
 
 ## 1. Overview
 
 A tool-using AI agent (built on Claude via the Anthropic Messages API tool-calling
-loop) that handles three classes of customer support requests for an online
-bookstore:
+loop) that handles three classes of customer support requests for Bookly, an
+online bookstore:
 
 1. **Order status inquiries** — "Where's my order?", "Has #12345 shipped?"
 2. **Return / refund requests** — eligibility checks, initiating a return,
@@ -13,7 +13,7 @@ bookstore:
    other FAQ-style questions
 
 The customer talks to the agent through a **web chat widget** embedded on the
-bookstore site. The agent is **read/write for information**, but any action
+Bookly site (or any site — see §8). The agent is **read/write for information**, but any action
 with financial or account consequence (refunds, return approvals) is
 **drafted by the agent and routed to a human-approval queue** rather than
 executed automatically. Everything else (order lookups, policy answers,
@@ -100,7 +100,39 @@ Loop:
    function, feed the `tool_result` back, and loop.
 4. Once Claude returns a plain text response, send it to the widget.
 
-The system prompt (in `backend/agent.py`) sets ground rules:
+### 3.1 Where personality and guardrails are defined
+
+Both live in one place: the `SYSTEM_PROMPT` string constant at the top of
+`backend/agent.py`. There's no separate "personality" config or template
+system — it's a single hand-written prompt, which is normal for an agent
+this scoped. To change how Bookly's assistant sounds or what it's allowed
+to do, edit that string directly and redeploy (no other file needs to
+change — the prompt is passed straight into every `messages.create()` call
+in `SupportAgent.send()`).
+
+It currently covers two different kinds of instruction, worth telling
+apart when editing:
+
+**Personality / tone** — currently just the opening line ("You are the
+customer support agent for Bookly...") plus rule 7 ("Be warm, concise, and
+professional..."). This is the thin part today — if you want a more
+distinct voice (more playful, more formal, book-nerd asides, a specific
+greeting style, etc.), this is what to flesh out. Keep it short and
+concrete; vague adjectives like "friendly" steer the model less reliably
+than concrete instructions ("use the customer's name once you have it,"
+"keep replies under 3 sentences unless explaining a policy").
+
+**Guardrails** — rules 1–6 and 8, which do the actual safety/scope work:
+never inventing order data, requiring identity verification before
+disclosing order details, never claiming a refund is processed (only
+"submitted for review"), the privacy rule for password resets, when to
+escalate to a human, and asking for missing info before calling tools.
+These are load-bearing — loosening them (e.g. letting the agent claim a
+refund is "approved") would break the human-in-the-loop guarantee in §4.
+Tighten or extend them freely; be more careful relaxing them.
+
+The current rule set (paraphrased here for scanning — the exact wording
+lives in `SYSTEM_PROMPT` in `backend/agent.py`):
 
 - Only answer from tool results / the policy KB — never invent order
   details, tracking numbers, or policy terms.
@@ -109,10 +141,23 @@ The system prompt (in `backend/agent.py`) sets ground rules:
 - Never state that a refund/return has been approved or processed — only
   that it's been **submitted for review**, since actual execution requires
   human approval.
+- Relay the password-reset message to the customer verbatim, regardless of
+  whether the email actually matched an account (privacy — avoids account
+  enumeration).
+- Answer general questions only from `search_policy_kb` results; say so
+  and offer a human if nothing relevant is found.
 - Escalate to a human (via a clearly flagged message) for anything outside
   scope: damaged/wrong item disputes needing judgment calls, abuse, legal
   threats, anything the tools can't resolve.
-- Keep a friendly, concise, bookstore-appropriate tone.
+- Be warm, concise, and professional; avoid corporate filler; don't dump
+  every tool field on the customer.
+- Ask for missing identifying info (order ID, email) before calling tools
+  that need it.
+
+If the prompt grows enough that "personality" and "guardrails" start
+feeling tangled, consider splitting `SYSTEM_PROMPT` into two concatenated
+strings (e.g. `TONE_PROMPT` + `GUARDRAILS_PROMPT`) so each can be edited
+independently — not necessary yet at this size.
 
 ## 4. Human-in-the-loop approval
 
@@ -192,15 +237,22 @@ docstring describing its contract. To go from mock → real:
 
 ## 8. Channel: web chat widget
 
-`frontend/widget.html` is a self-contained embeddable widget (inline CSS/JS,
-no build step) that:
+There are three frontend surfaces, all self-contained HTML/CSS/JS (no
+build step), served by `backend/app.py`:
 
-- Renders a chat bubble/button, expands to a chat panel.
-- Maintains a `session_id` in memory for the page session.
-- POSTs each customer message to `POST /api/chat` and renders the reply.
-- Can be dropped into any page via an `<iframe>` or copied inline; for
-  production you'd typically compile it into a small JS snippet
-  (`<script src="widget.js">`) that injects the UI — noted as a follow-up.
+| File | Served at | Purpose |
+|---|---|---|
+| `frontend/widget.html` | `/` | Bookly's own main site — a Help Center landing page with the chat widget embedded |
+| `frontend/embed-widget.html` | `/embed` | Bare chat bubble + panel, no landing-page chrome — loaded inside an iframe on *other* sites |
+| `frontend/embed.js` | `/embed.js` | Drop-in `<script>` loader — one line (`<script src=".../embed.js">`) embeds the widget on any external site |
+| `frontend/admin.html` | `/admin` | Staff-facing: approve/deny return requests, browse orders |
+
+The actual chat mechanics are identical everywhere (`widget.html` and
+`embed-widget.html` both run the same client-side logic): maintain a
+`session_id` in memory for the page session, POST each customer message to
+`POST /api/chat`, render the reply. See `docs/EMBEDDING.md` for how the
+`/embed` + `/embed.js` pair works (iframe-isolated so a host site's CSS
+can't clash with the widget, sized via `postMessage` between the two).
 
 ## 9. What's out of scope for this build (explicitly)
 

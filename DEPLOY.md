@@ -46,7 +46,7 @@ never commit real API keys.)
 
 ## 3. Try it
 
-Render gives you a URL like `https://bookworm-haven-support-agent.onrender.com`.
+Render gives you a URL like `https://bookly-support-agent.onrender.com`.
 
 - Open it in a browser → the chat widget loads (served at `/`), click the
   💬 bubble and chat with the agent.

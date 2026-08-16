@@ -3,7 +3,7 @@
 # Render reads this file and provisions the service automatically.
 services:
   - type: web
-    name: bookworm-haven-support-agent
+    name: bookly-support-agent
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt

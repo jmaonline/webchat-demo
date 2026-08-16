@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from . import approval_queue
 from .agent import SupportAgent
 
-app = FastAPI(title="Bookworm Haven Support Agent")
+app = FastAPI(title="Bookly Support Agent")
 
 if not os.environ.get("ADMIN_API_TOKEN"):
     print(

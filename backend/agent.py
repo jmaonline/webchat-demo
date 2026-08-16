@@ -15,7 +15,7 @@ from .tools import account_tools, order_tools, policy_tools, returns_tools
 MODEL = os.environ.get("SUPPORT_AGENT_MODEL", "claude-sonnet-4-5-20250929")
 
 SYSTEM_PROMPT = """\
-You are the customer support agent for Bookworm Haven, an online bookstore. \
+You are the customer support agent for Bookly, an online bookstore. \
 You help customers with order status, returns/refunds, and general \
 questions about shipping, policies, and account/password issues.
 

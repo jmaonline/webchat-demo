@@ -1,4 +1,4 @@
-# Bookworm Haven — Customer Support Agent (Prototype)
+# Bookly — Customer Support Agent (Prototype)
 
 A tool-calling AI support agent for an online bookstore. Handles order
 status, returns/refunds (with human approval), and general policy/FAQ
@@ -49,7 +49,7 @@ export ANTHROPIC_API_KEY=sk-ant-...   # or `source .env` with your own loader
 pytest tests/ -v
 ```
 
-All 29 tests should pass — they cover the mock backend tools, the
+All 32 tests should pass — they cover the mock backend tools, the
 approval-queue human-in-the-loop flow, the agent's tool-dispatch loop
 (against a stubbed Claude client, so no API calls/cost), and the FastAPI
 endpoints.

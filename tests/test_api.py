@@ -70,7 +70,7 @@ def test_widget_served_at_root():
     res = client.get("/")
     assert res.status_code == 200
     assert "text/html" in res.headers["content-type"]
-    assert "Bookworm Haven" in res.text
+    assert "Bookly" in res.text
 
 
 def test_admin_ui_served():

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bookworm Haven — Support Admin</title>
+<style>
+  :root {
+    --brand: #2f5233;
+    --brand-dark: #203a24;
+    --danger: #a4383a;
+    --bg: #faf9f6;
+    --card: #ffffff;
+    --border: #e6e3da;
+    --text: #1f1f1f;
+    --muted: #6b6b6b;
+    --pending: #b8860b;
+    --approved: #2f5233;
+    --denied: #a4383a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--brand);
+    color: white;
+    padding: 20px 28px;
+  }
+  header h1 { margin: 0; font-size: 18px; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  #token-gate {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  #token-gate label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px; }
+  #token-gate .row { display: flex; gap: 8px; }
+  #token-gate input[type="password"], #token-gate input[type="text"] {
+    flex: 1;
+    padding: 9px 11px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  #token-gate button, .toolbar button {
+    background: var(--brand);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  #token-gate button:hover, .toolbar button:hover { background: var(--brand-dark); }
+  #token-gate .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  #token-status { font-size: 13px; margin-top: 10px; }
+  #token-status.ok { color: var(--approved); }
+  #token-status.err { color: var(--denied); }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .toolbar .filters { display: flex; gap: 6px; }
+  .toolbar .filters button {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .toolbar .filters button.active {
+    background: var(--brand);
+    color: white;
+    border-color: var(--brand);
+  }
+  .toolbar .refresh { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+
+  .req-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .req-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .req-id { font-weight: 700; font-size: 14px; }
+  .req-status {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #f1f0ec;
+  }
+  .req-status.pending { color: var(--pending); }
+  .req-status.approved { color: var(--approved); }
+  .req-status.denied { color: var(--denied); }
+
+  .req-body { margin-top: 10px; font-size: 13.5px; line-height: 1.6; color: var(--text); }
+  .req-body .label { color: var(--muted); }
+  .req-actions { margin-top: 12px; display: flex; gap: 8px; }
+  .req-actions button {
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    color: white;
+  }
+  .req-actions .approve-btn { background: var(--brand); }
+  .req-actions .approve-btn:hover { background: var(--brand-dark); }
+  .req-actions .deny-btn { background: var(--danger); }
+  .req-actions .deny-btn:hover { background: #7f2c2d; }
+  .req-actions input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 0;
+    font-size: 14px;
+  }
+
+  #app { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Bookworm Haven — Support Admin</h1>
+  <p>Review and resolve pending return/refund requests submitted by the chat agent.</p>
+</header>
+
+<main>
+  <div id="token-gate">
+    <label for="token-input">Admin token</label>
+    <div class="row">
+      <input id="token-input" type="password" placeholder="Enter your ADMIN_API_TOKEN" autocomplete="off" />
+      <button id="token-connect">Connect</button>
+    </div>
+    <div class="hint">
+      This is the <code>ADMIN_API_TOKEN</code> value you set in Render's environment variables.
+      It's kept in this browser tab only (never stored), and sent as a header with each request.
+      Backend URL: <input id="backend-url" type="text" style="width:auto; padding:2px 6px; font-size:12px;" />
+    </div>
+    <div id="token-status"></div>
+  </div>
+
+  <div id="app">
+    <div class="toolbar">
+      <div class="filters">
+        <button data-filter="pending" class="active">Pending</button>
+        <button data-filter="approved">Approved</button>
+        <button data-filter="denied">Denied</button>
+        <button data-filter="">All</button>
+      </div>
+      <button class="refresh" id="refresh-btn">↻ Refresh</button>
+    </div>
+    <div id="list"></div>
+  </div>
+</main>
+
+<script>
+(function () {
+  const tokenInput = document.getElementById('token-input');
+  const tokenConnect = document.getElementById('token-connect');
+  const tokenStatus = document.getElementById('token-status');
+  const backendUrlInput = document.getElementById('backend-url');
+  const app = document.getElementById('app');
+  const listEl = document.getElementById('list');
+  const refreshBtn = document.getElementById('refresh-btn');
+  const filterButtons = document.querySelectorAll('.filters button');
+
+  let adminToken = null;
+  let currentFilter = 'pending';
+
+  backendUrlInput.value =
+    window.location.protocol === 'file:' ? 'http://localhost:8000' : window.location.origin;
+
+  function backendUrl() {
+    return backendUrlInput.value.replace(/\/$/, '');
+  }
+
+  async function apiFetch(path, options = {}) {
+    const res = await fetch(backendUrl() + path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Token': adminToken || '',
+        ...(options.headers || {}),
+      },
+    });
+    return res;
+  }
+
+  async function connect() {
+    adminToken = tokenInput.value.trim();
+    if (!adminToken) return;
+    tokenStatus.textContent = 'Checking…';
+    tokenStatus.className = '';
+    try {
+      const res = await apiFetch('/api/admin/approvals');
+      if (res.status === 401) {
+        tokenStatus.textContent = 'Invalid token — check ADMIN_API_TOKEN in Render and try again.';
+        tokenStatus.className = 'err';
+        app.style.display = 'none';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      tokenStatus.textContent = 'Connected.';
+      tokenStatus.className = 'ok';
+      app.style.display = 'block';
+      loadRequests();
+    } catch (err) {
+      tokenStatus.textContent = 'Could not reach backend (' + err.message + '). Check the backend URL.';
+      tokenStatus.className = 'err';
+      app.style.display = 'none';
+    }
+  }
+
+  tokenConnect.addEventListener('click', connect);
+  tokenInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+
+  filterButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      filterButtons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      loadRequests();
+    });
+  });
+  refreshBtn.addEventListener('click', loadRequests);
+
+  function fmtMoney(n) {
+    return '$' + Number(n).toFixed(2);
+  }
+  function fmtDate(iso) {
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  }
+
+  function renderCard(req) {
+    const div = document.createElement('div');
+    div.className = 'req-card';
+
+    const actionsHtml = req.status === 'pending' ? `
+      <div class="req-actions">
+        <input type="text" placeholder="Optional note…" data-role="notes" />
+        <button class="approve-btn" data-action="approve">Approve</button>
+        <button class="deny-btn" data-action="deny">Deny</button>
+      </div>
+    ` : `
+      <div class="req-body" style="margin-top:8px;">
+        <span class="label">Resolved by:</span> ${req.resolved_by || '—'} on ${fmtDate(req.resolved_at)}
+        ${req.resolution_notes ? `<br/><span class="label">Notes:</span> ${req.resolution_notes}` : ''}
+      </div>
+    `;
+
+    div.innerHTML = `
+      <div class="req-top">
+        <span class="req-id">${req.request_id} — Order ${req.order_id}</span>
+        <span class="req-status ${req.status}">${req.status}</span>
+      </div>
+      <div class="req-body">
+        <span class="label">Customer:</span> ${req.customer_email}<br/>
+        <span class="label">Item:</span> ${req.item_title}<br/>
+        <span class="label">Reason:</span> ${req.reason}<br/>
+        <span class="label">Requested refund:</span> ${fmtMoney(req.requested_refund_amount)}<br/>
+        <span class="label">Submitted:</span> ${fmtDate(req.created_at)}
+      </div>
+      ${actionsHtml}
+    `;
+
+    if (req.status === 'pending') {
+      div.querySelector('[data-action="approve"]').addEventListener('click', () => resolve(req.request_id, true, div));
+      div.querySelector('[data-action="deny"]').addEventListener('click', () => resolve(req.request_id, false, div));
+    }
+    return div;
+  }
+
+  async function resolve(requestId, approve, cardEl) {
+    const notes = cardEl.querySelector('[data-role="notes"]')?.value || '';
+    const resolvedBy = prompt('Your name (for the audit trail):', 'support-staff');
+    if (resolvedBy === null) return;
+    try {
+      const res = await apiFetch(`/api/admin/approvals/${requestId}/${approve ? 'approve' : 'deny'}`, {
+        method: 'POST',
+        body: JSON.stringify({ resolved_by: resolvedBy || 'support-staff', notes }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      loadRequests();
+    } catch (err) {
+      alert('Failed to resolve request: ' + err.message);
+    }
+  }
+
+  async function loadRequests() {
+    listEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    try {
+      const qs = currentFilter ? `?status=${currentFilter}` : '';
+      const res = await apiFetch(`/api/admin/approvals${qs}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      listEl.innerHTML = '';
+      if (!data.requests.length) {
+        listEl.innerHTML = '<div class="empty-state">No requests in this view.</div>';
+        return;
+      }
+      data.requests.forEach((req) => listEl.appendChild(renderCard(req)));
+    } catch (err) {
+      listEl.innerHTML = `<div class="empty-state">Failed to load: ${err.message}</div>`;
+    }
+  }
+})();
+</script>
+
+</body>
+</html>

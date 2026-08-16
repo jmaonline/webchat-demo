@@ -73,6 +73,13 @@ def test_widget_served_at_root():
     assert "Bookworm Haven" in res.text
 
 
+def test_admin_ui_served():
+    res = client.get("/admin")
+    assert res.status_code == 200
+    assert "text/html" in res.headers["content-type"]
+    assert "Support Admin" in res.text
+
+
 def test_admin_endpoints_require_token_when_configured(monkeypatch):
     monkeypatch.setenv("ADMIN_API_TOKEN", "s3cret")
 

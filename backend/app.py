@@ -49,7 +49,9 @@ app.add_middleware(
 )
 
 _SESSIONS: dict[str, SupportAgent] = {}
-_WIDGET_PATH = Path(__file__).resolve().parent.parent / "frontend" / "widget.html"
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+_WIDGET_PATH = _FRONTEND_DIR / "widget.html"
+_ADMIN_PATH = _FRONTEND_DIR / "admin.html"
 
 
 def require_admin(x_admin_token: str | None = Header(default=None, alias="X-Admin-Token")) -> None:
@@ -77,6 +79,17 @@ class ResolveRequest(BaseModel):
 def widget():
     """Serves the chat widget itself, so the whole app is reachable from one URL."""
     return FileResponse(_WIDGET_PATH)
+
+
+@app.get("/admin")
+def admin_ui():
+    """
+    Serves the staff admin page for reviewing/approving return-refund
+    requests. The page itself has no secrets in it — it prompts whoever
+    loads it for the ADMIN_API_TOKEN client-side and sends it as a header
+    on each API call, which is what actually enforces access control.
+    """
+    return FileResponse(_ADMIN_PATH)
 
 
 @app.post("/api/chat", response_model=ChatResponse)

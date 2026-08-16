@@ -41,7 +41,17 @@ never commit real API keys.)
      `openssl rand -hex 24`). This protects the `/api/admin/approvals`
      endpoints — without it set, anyone who finds your URL could approve
      refunds, so don't skip this.
-5. Deploy. The build log will show `pip install` running, then the service
+5. `render.yaml` also provisions a free Postgres database
+   (`bookly-support-db`) and wires its connection string into the web
+   service as `DATABASE_URL` automatically — no manual setup needed. This
+   is what makes chat sessions survive restarts and lets staff review past
+   conversations at `/api/admin/sessions`. **Free Postgres on Render
+   expires 30 days after creation** (data is deleted after a 14-day grace
+   period) — fine while you're testing this out, but if you want chat
+   history to persist long-term, upgrade the database to a paid plan
+   (Dashboard → the `bookly-support-db` database → Settings → change
+   plan) before it expires; upgrading in place keeps the existing data.
+6. Deploy. The build log will show `pip install` running, then the service
    starting. First deploy usually takes 1-3 minutes.
 
 ## 3. Try it
@@ -74,7 +84,9 @@ knowledge required; nothing about the app itself is Render-specific.
 
 ## Before you rely on this for real customers
 
-This is still a prototype (see `docs/ARCHITECTURE.md` §9): in-memory
-session/approval-queue storage (resets on every deploy/restart), open CORS,
-mock order/policy data, and no customer login. Fine for testing and demos;
-revisit those before pointing real traffic at it.
+This is still a prototype (see `docs/ARCHITECTURE.md` §9): the
+approval-queue is still in-memory (resets on every deploy/restart) — chat
+sessions can now optionally persist to Postgres (see above), but that's
+still a free/expiring database, not a production-grade setup — plus open
+CORS, mock order/policy data, and no customer login. Fine for testing and
+demos; revisit those before pointing real traffic at it.

@@ -8,10 +8,16 @@ FastAPI backend exposing:
   POST /api/admin/approvals/{id}/approve  - human approves a return/refund
   POST /api/admin/approvals/{id}/deny     - human denies a return/refund
   GET  /api/admin/orders                  - list all orders (from the Google Sheet / local fallback)
+  GET  /api/admin/sessions                - list recent chat sessions (requires Postgres, see db.py)
+  GET  /api/admin/sessions/{id}           - full transcript for one chat session
 
-Session state (conversation history per customer) is kept in memory here
-for the prototype — swap for Redis/a DB for production so it survives
-restarts and scales across workers.
+Session state (conversation history per customer) is kept in an in-memory
+dict here for fast access *within* a running process. When DATABASE_URL is
+set (see db.py, render.yaml), every turn is also persisted to Postgres, so
+a conversation survives a restart/redeploy and staff can review past
+transcripts via GET /api/admin/sessions[...]. Without DATABASE_URL set,
+persistence is skipped entirely and behavior is unchanged (in-memory only,
+resets on restart) — fine for local dev/tests.
 
 Admin endpoints are protected by a shared-secret header (X-Admin-Token)
 when ADMIN_API_TOKEN is set in the environment. Set this before deploying
@@ -29,7 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import approval_queue
+from . import approval_queue, db
 from .agent import SupportAgent
 from .tools import data_store
 
@@ -125,9 +131,24 @@ def chat(req: ChatRequest) -> ChatResponse:
     agent = _SESSIONS.get(session_id)
     if agent is None:
         agent = SupportAgent()
+        # Not in this process's memory — e.g. after a restart/redeploy.
+        # Try to resume the conversation from Postgres before starting a
+        # brand-new one. No-op (returns None) if persistence isn't
+        # configured or this session was never saved.
+        saved_messages = db.load_session(session_id)
+        if saved_messages:
+            agent.load_messages(saved_messages)
         _SESSIONS[session_id] = agent
 
     reply = agent.send(req.message)
+
+    # Best-effort persistence: never let a DB hiccup break the customer's
+    # chat response. No-op if DATABASE_URL isn't configured.
+    try:
+        db.save_session(session_id, agent.to_serializable_messages())
+    except Exception as e:  # noqa: BLE001
+        print(f"[warning] failed to persist session {session_id}: {e}")
+
     return ChatResponse(session_id=session_id, reply=reply)
 
 
@@ -166,6 +187,27 @@ def list_orders():
     here.
     """
     return {"orders": data_store.get_all_orders()}
+
+
+@app.get("/api/admin/sessions", dependencies=[Depends(require_admin)])
+def list_sessions():
+    """
+    Recent chat sessions (id, timestamps, message count), most-recently-
+    active first — lets staff spot-check what customers are asking Bucky.
+    Requires Postgres persistence to be configured (DATABASE_URL); returns
+    an empty list otherwise rather than erroring, since this is an
+    optional feature.
+    """
+    return {"sessions": db.list_sessions()}
+
+
+@app.get("/api/admin/sessions/{session_id}", dependencies=[Depends(require_admin)])
+def get_session_transcript(session_id: str):
+    """Full message history for one chat session, as persisted to Postgres."""
+    messages = db.load_session(session_id)
+    if messages is None:
+        raise HTTPException(status_code=404, detail="Session not found (or Postgres persistence isn't configured)")
+    return {"session_id": session_id, "messages": messages}
 
 
 @app.get("/api/health")

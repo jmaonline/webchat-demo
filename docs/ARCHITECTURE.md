@@ -214,6 +214,11 @@ Full schemas are in `backend/agent.py` (`TOOLS` list) and implementations in
 - No payment card data is ever stored or handled — refunds go through the
   existing payment processor once a human approves; this agent only
   triggers/queues that action.
+- When Postgres persistence is enabled (§8.1), full chat transcripts —
+  including any email addresses or order details a customer shares — are
+  stored indefinitely with no automatic expiry/redaction. A real
+  deployment handling actual customer data should add a retention policy
+  before relying on this.
 
 ## 7. Swapping mocks for real systems
 
@@ -254,6 +259,30 @@ The actual chat mechanics are identical everywhere (`widget.html` and
 `/embed` + `/embed.js` pair works (iframe-isolated so a host site's CSS
 can't clash with the widget, sized via `postMessage` between the two).
 
+### 8.1 Session persistence
+
+`app.py` keeps an in-memory `session_id -> SupportAgent` dict for
+fast access within a running process, but that alone doesn't survive a
+restart/redeploy, and gives staff no way to review past conversations.
+`backend/db.py` adds an optional Postgres-backed layer on top:
+
+- After every turn, `SupportAgent.to_serializable_messages()` (agent.py)
+  flattens the conversation — including Anthropic SDK content block
+  objects from assistant turns — into plain JSON, which
+  `db.save_session()` upserts into a `chat_sessions` table.
+- On a cache miss (e.g. a request lands after a restart), `app.py` calls
+  `db.load_session()` and, if found, restores it via
+  `SupportAgent.load_messages()` before continuing the conversation —
+  the customer doesn't notice anything changed.
+- Staff can list recent conversations and read a full transcript via
+  `GET /api/admin/sessions` / `GET /api/admin/sessions/{id}` (same
+  `X-Admin-Token` auth as the other admin endpoints).
+
+This is entirely controlled by the `DATABASE_URL` environment variable —
+unset, it's a no-op and behavior is identical to before (in-memory only).
+See the README's "Chat session persistence" section and `DEPLOY.md` for
+how Render provisions this, including the free-tier's 30-day expiration.
+
 ## 9. What's out of scope for this build (explicitly)
 
 - Real payment/refund execution (stops at "queued for human approval").
@@ -262,8 +291,10 @@ can't clash with the widget, sized via `postMessage` between the two).
   a small markdown FAQ — swap-in point noted above).
 - Multi-language support, voice/phone channel, proactive notifications
   (e.g. "your order shipped").
-- Production concerns: persistent DB (uses in-memory/JSON for the
-  prototype), authentication on admin endpoints, rate limiting, logging/
-  observability, deployment/infra.
+- Production concerns: the approval queue and order/policy data are still
+  in-memory/JSON for the prototype (chat sessions can now optionally
+  persist to Postgres — see §8.1); no authentication on admin endpoints
+  beyond a shared-secret header, no rate limiting, no logging/
+  observability, no production-grade deployment/infra.
 
 These are natural next steps once the core agent behavior is validated.

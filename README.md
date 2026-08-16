@@ -15,6 +15,7 @@ backend/
   agent.py           - system prompt, tool schemas, tool-use loop (SupportAgent)
   app.py             - FastAPI server: /api/chat + admin approval endpoints
   approval_queue.py  - human-in-the-loop queue for refunds/returns
+  db.py              - optional Postgres persistence for chat sessions (no-op if DATABASE_URL unset)
   chat_cli.py         - terminal chat harness for manual testing with a real API key
   tools/
     order_tools.py     - order status lookup
@@ -31,10 +32,12 @@ frontend/
   embed-widget.html   - bare chat bubble+panel (no landing page), served at /embed
   embed.js            - drop-in <script> loader for embedding the widget on any other site
 tests/
-  test_tools.py            - unit tests for all backend tool functions (no API key needed)
-  test_agent_loop.py       - tests the tool-use loop logic with a stubbed Claude client
-  test_api.py               - tests the FastAPI endpoints (including /embed, /embed.js)
-  test_data_store_sheets.py - tests the Google Sheets CSV parsing + fallback logic
+  test_tools.py               - unit tests for all backend tool functions (no API key needed)
+  test_agent_loop.py          - tests the tool-use loop logic with a stubbed Claude client
+  test_agent_serialization.py - tests conversation serialize/restore for Postgres persistence
+  test_api.py                 - tests the FastAPI endpoints (including /embed, /embed.js)
+  test_data_store_sheets.py   - tests the Google Sheets CSV parsing + fallback logic
+  test_db.py                  - tests backend/db.py's persistence layer with a fake Postgres driver
 docs/
   ARCHITECTURE.md          - full design doc
   GOOGLE_SHEETS_SETUP.md   - optional: point test data at a Google Sheet instead of local JSON
@@ -57,10 +60,11 @@ export ANTHROPIC_API_KEY=sk-ant-...   # or `source .env` with your own loader
 pytest tests/ -v
 ```
 
-All 46 tests should pass — they cover the mock backend tools, the
+All 61 tests should pass — they cover the mock backend tools, the
 approval-queue human-in-the-loop flow, the agent's tool-dispatch loop
-(against a stubbed Claude client, so no API calls/cost), and the FastAPI
-endpoints.
+(against a stubbed Claude client, so no API calls/cost), the FastAPI
+endpoints, and the optional Postgres persistence layer (tested against a
+fake driver — no real database needed to run the suite).
 
 ## Try it in the terminal (requires a real API key)
 
@@ -124,6 +128,30 @@ Drop the chat widget onto any external site with one line:
 See [`docs/EMBEDDING.md`](docs/EMBEDDING.md) for how it works and
 `docs/embed-demo.html` for a working example on a fake unrelated site.
 
+## Chat session persistence (optional, Postgres)
+
+By default, chat sessions live only in server memory — they're lost if the
+process restarts, and there's no record of past conversations. Setting
+`DATABASE_URL` turns on Postgres persistence: every turn is saved, so a
+conversation survives a restart and staff can review transcripts:
+
+```bash
+# Recent sessions (id, timestamps, message count)
+curl http://localhost:8000/api/admin/sessions
+
+# Full transcript for one session
+curl http://localhost:8000/api/admin/sessions/<session_id>
+```
+
+Leave `DATABASE_URL` unset for local dev — everything falls back to
+in-memory behavior automatically, no errors. On Render, `render.yaml`
+provisions a free Postgres database and wires `DATABASE_URL` to it
+automatically when you deploy the blueprint. **Heads up:** Render's free
+Postgres plan expires 30 days after creation (data is deleted after a
+14-day grace period) — fine for testing, but upgrade the database to a
+paid plan in the Render dashboard before then if you want chat history to
+stick around (upgrading in place keeps existing data).
+
 ## Using Google Sheets for test data (optional)
 
 By default order/customer/return data comes from the local JSON files. You
@@ -135,8 +163,9 @@ import are in `backend/mock_data/sheets_export/`.
 ## Next steps toward production
 
 See §7 and §9 of `docs/ARCHITECTURE.md` for the full list, in short:
-connect real order/returns/policy/auth systems in place of the mocks,
-move session state and the approval queue to a real database, add
-authentication (both customer login and admin-endpoint auth), lock down
-CORS, add logging/observability, and decide on a notification channel for
-approval outcomes (email the customer when their return is approved/denied).
+connect real order/returns/policy/auth systems in place of the mocks, move
+the approval queue to a real database (chat sessions can already
+optionally persist to Postgres — see above), add authentication (both
+customer login and admin-endpoint auth), lock down CORS, add logging/
+observability, and decide on a notification channel for approval outcomes
+(email the customer when their return is approved/denied).

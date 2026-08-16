@@ -1,6 +1,13 @@
 # Render "Blueprint" spec — https://render.com/docs/blueprint-spec
 # In the Render dashboard: New + -> Blueprint -> connect this repo.
 # Render reads this file and provisions the service automatically.
+#
+# NOTE on the free Postgres plan below: Render's free Postgres databases
+# expire 30 days after creation (14-day grace period after that before
+# deletion) — fine for testing/demoing this build, but if you want chat
+# history to persist long-term, upgrade the database to a paid plan
+# (Basic-256mb, currently ~$6/mo) in the Render dashboard before it
+# expires. Upgrading in place keeps the existing data.
 services:
   - type: web
     name: bookly-support-agent
@@ -16,3 +23,13 @@ services:
         sync: false   # set manually in the Render dashboard — do not commit it
       - key: ADMIN_API_TOKEN
         sync: false   # set manually in the Render dashboard — protects /api/admin/*
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bookly-support-db
+          property: connectionString
+
+databases:
+  - name: bookly-support-db
+    plan: free
+    databaseName: bookly_support
+    user: bookly_support

@@ -162,6 +162,30 @@ _TOOL_IMPL: dict[str, Callable[..., dict]] = {
 }
 
 
+def _serialize_content(content: Any) -> Any:
+    """
+    Normalize one message's `content` into plain JSON-safe data.
+
+    Anthropic API message content is either a plain string, or a list of
+    content blocks. Blocks coming *out* of the SDK (assistant turns, i.e.
+    `response.content`) are pydantic objects (TextBlock/ToolUseBlock/...);
+    blocks we build ourselves (tool_result turns) are already plain dicts.
+    This lets a conversation be persisted (e.g. to Postgres, see db.py) and
+    later replayed by feeding the same plain dicts back to the API.
+    """
+    if isinstance(content, str):
+        return content
+    serialized = []
+    for block in content:
+        if isinstance(block, dict):
+            serialized.append(block)
+        elif hasattr(block, "model_dump"):
+            serialized.append(block.model_dump(mode="json"))
+        else:
+            serialized.append(dict(vars(block)))  # best-effort fallback (e.g. test doubles)
+    return serialized
+
+
 def _execute_tool(name: str, tool_input: dict[str, Any]) -> dict:
     impl = _TOOL_IMPL.get(name)
     if impl is None:
@@ -185,6 +209,18 @@ class SupportAgent:
         self.model = model
         self.messages: list[dict] = []
         self.tool_call_log: list[dict] = []  # for debugging/tests: every tool call + result
+
+    def to_serializable_messages(self) -> list[dict]:
+        """
+        A plain-JSON snapshot of the conversation so far — safe to persist
+        (e.g. to Postgres, see db.py) and later hand to load_messages() to
+        resume this exact conversation in a new SupportAgent instance.
+        """
+        return [{"role": m["role"], "content": _serialize_content(m["content"])} for m in self.messages]
+
+    def load_messages(self, messages: list[dict]) -> None:
+        """Restore a conversation previously captured by to_serializable_messages()."""
+        self.messages = messages
 
     def send(self, user_message: str, max_tool_iterations: int = 6) -> str:
         self.messages.append({"role": "user", "content": user_message})

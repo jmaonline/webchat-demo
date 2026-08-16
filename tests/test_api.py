@@ -115,6 +115,66 @@ def test_admin_orders_endpoint_requires_token_when_configured(monkeypatch):
     assert res.status_code == 200
 
 
+def test_admin_sessions_endpoint_empty_without_database_url(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    res = client.get("/api/admin/sessions")
+    assert res.status_code == 200
+    assert res.json() == {"sessions": []}
+
+
+def test_admin_session_transcript_404_without_database_url(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    res = client.get("/api/admin/sessions/does-not-exist")
+    assert res.status_code == 404
+
+
+def test_admin_sessions_endpoint_requires_token_when_configured(monkeypatch):
+    monkeypatch.setenv("ADMIN_API_TOKEN", "s3cret")
+    res = client.get("/api/admin/sessions")
+    assert res.status_code == 401
+    res = client.get("/api/admin/sessions", headers={"X-Admin-Token": "s3cret"})
+    assert res.status_code == 200
+
+
+def test_chat_endpoint_persists_session_when_database_configured(monkeypatch):
+    """
+    The chat endpoint should call db.save_session() after every turn (and
+    db.load_session() on a cache miss) — verified here against a fake db
+    module so no real Postgres is needed.
+    """
+    saved = {}
+
+    def fake_save_session(session_id, messages):
+        saved[session_id] = messages
+
+    def fake_load_session(session_id):
+        return saved.get(session_id)
+
+    monkeypatch.setattr(app_module.db, "save_session", fake_save_session)
+    monkeypatch.setattr(app_module.db, "load_session", fake_load_session)
+
+    class StubAgent:
+        def __init__(self):
+            self.messages = []
+
+        def send(self, message, **kwargs):
+            self.messages.append({"role": "user", "content": message})
+            return f"stub reply to: {message}"
+
+        def to_serializable_messages(self):
+            return self.messages
+
+        def load_messages(self, messages):
+            self.messages = messages
+
+    monkeypatch.setattr(app_module, "SupportAgent", StubAgent)
+    app_module._SESSIONS.pop("persisted-session", None)  # ensure a cache miss
+
+    res = client.post("/api/chat", json={"session_id": "persisted-session", "message": "hello"})
+    assert res.status_code == 200
+    assert saved["persisted-session"] == [{"role": "user", "content": "hello"}]
+
+
 def test_embed_widget_served():
     res = client.get("/embed")
     assert res.status_code == 200

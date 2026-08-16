@@ -94,3 +94,22 @@ def test_admin_endpoints_require_token_when_configured(monkeypatch):
     # Correct header -> allowed
     res = client.get("/api/admin/approvals", headers={"X-Admin-Token": "s3cret"})
     assert res.status_code == 200
+
+
+def test_admin_orders_endpoint_returns_mock_orders():
+    res = client.get("/api/admin/orders")
+    assert res.status_code == 200
+    orders = res.json()["orders"]
+    assert len(orders) == 5
+    order_ids = {o["order_id"] for o in orders}
+    assert "BK-10021" in order_ids
+
+
+def test_admin_orders_endpoint_requires_token_when_configured(monkeypatch):
+    monkeypatch.setenv("ADMIN_API_TOKEN", "s3cret")
+
+    res = client.get("/api/admin/orders")
+    assert res.status_code == 401
+
+    res = client.get("/api/admin/orders", headers={"X-Admin-Token": "s3cret"})
+    assert res.status_code == 200

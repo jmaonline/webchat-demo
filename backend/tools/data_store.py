@@ -148,6 +148,11 @@ def _load_customers() -> list[dict]:
         return json.load(f)["customers"]
 
 
+def get_all_orders() -> list[dict]:
+    """All orders, most recent first — used by the staff admin UI's Orders view."""
+    return sorted(_load_orders(), key=lambda o: o.get("order_date") or "", reverse=True)
+
+
 def get_order_by_id(order_id: str) -> Optional[dict]:
     for order in _load_orders():
         if order["order_id"].lower() == order_id.strip().lower():

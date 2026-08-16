@@ -17,6 +17,7 @@
     --pending: #b8860b;
     --approved: #2f5233;
     --denied: #a4383a;
+    --info: #3b5b8c;
   }
   * { box-sizing: border-box; }
   body {
@@ -33,7 +34,7 @@
   header h1 { margin: 0; font-size: 18px; }
   header p { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
 
-  main { max-width: 900px; margin: 0 auto; padding: 24px 20px 60px; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; }
 
   #token-gate {
     background: var(--card);
@@ -51,7 +52,7 @@
     border-radius: 6px;
     font-size: 14px;
   }
-  #token-gate button, .toolbar button {
+  #token-gate button, .toolbar button, .view-tabs button {
     background: var(--brand);
     color: white;
     border: none;
@@ -60,11 +61,30 @@
     font-size: 14px;
     cursor: pointer;
   }
-  #token-gate button:hover, .toolbar button:hover { background: var(--brand-dark); }
+  #token-gate button:hover, .toolbar button:hover, .view-tabs button:hover { background: var(--brand-dark); }
   #token-gate .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
   #token-status { font-size: 13px; margin-top: 10px; }
   #token-status.ok { color: var(--approved); }
   #token-status.err { color: var(--denied); }
+
+  .view-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 14px;
+  }
+  .view-tabs button {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .view-tabs button.active {
+    background: var(--brand);
+    color: white;
+    border-color: var(--brand);
+  }
 
   .toolbar {
     display: flex;
@@ -83,18 +103,28 @@
     color: white;
     border-color: var(--brand);
   }
-  .toolbar .refresh { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .toolbar .refresh, .toolbar input[type="search"] {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .toolbar input[type="search"] {
+    border-radius: 6px;
+    padding: 8px 11px;
+    font-size: 13px;
+    width: 220px;
+  }
 
-  .req-card {
+  .req-card, .order-card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 16px 18px;
     margin-bottom: 12px;
   }
-  .req-top { display: flex; justify-content: space-between; align-items: baseline; }
-  .req-id { font-weight: 700; font-size: 14px; }
-  .req-status {
+  .req-top, .order-top { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+  .req-id, .order-id { font-weight: 700; font-size: 14px; }
+  .req-status, .order-status {
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
@@ -102,13 +132,14 @@
     padding: 3px 8px;
     border-radius: 999px;
     background: #f1f0ec;
+    white-space: nowrap;
   }
-  .req-status.pending { color: var(--pending); }
-  .req-status.approved { color: var(--approved); }
-  .req-status.denied { color: var(--denied); }
+  .req-status.pending, .order-status.processing, .order-status.shipped { color: var(--pending); }
+  .req-status.approved, .order-status.delivered { color: var(--approved); }
+  .req-status.denied, .order-status.cancelled { color: var(--denied); }
 
-  .req-body { margin-top: 10px; font-size: 13.5px; line-height: 1.6; color: var(--text); }
-  .req-body .label { color: var(--muted); }
+  .req-body, .order-body { margin-top: 10px; font-size: 13.5px; line-height: 1.6; color: var(--text); }
+  .req-body .label, .order-body .label { color: var(--muted); }
   .req-actions { margin-top: 12px; display: flex; gap: 8px; }
   .req-actions button {
     border: none;
@@ -130,6 +161,9 @@
     font-size: 13px;
   }
 
+  .order-items { margin-top: 6px; padding-left: 18px; }
+  .order-items li { margin-bottom: 2px; }
+
   .empty-state {
     text-align: center;
     color: var(--muted);
@@ -137,14 +171,21 @@
     font-size: 14px;
   }
 
+  .data-source-note {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
   #app { display: none; }
+  #orders-view { display: none; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>Bookly — Support Admin</h1>
-  <p>Review and resolve pending return/refund requests submitted by the chat agent.</p>
+  <p>Review return/refund requests and look up orders. Data updates, not this page's job — edit the Google Sheet or the chat agent's queue directly.</p>
 </header>
 
 <main>
@@ -163,16 +204,34 @@
   </div>
 
   <div id="app">
-    <div class="toolbar">
-      <div class="filters">
-        <button data-filter="pending" class="active">Pending</button>
-        <button data-filter="approved">Approved</button>
-        <button data-filter="denied">Denied</button>
-        <button data-filter="">All</button>
-      </div>
-      <button class="refresh" id="refresh-btn">↻ Refresh</button>
+    <div class="view-tabs">
+      <button data-view="returns" class="active">Return Requests</button>
+      <button data-view="orders">Orders</button>
     </div>
-    <div id="list"></div>
+
+    <div id="returns-view">
+      <div class="toolbar">
+        <div class="filters">
+          <button data-filter="pending" class="active">Pending</button>
+          <button data-filter="approved">Approved</button>
+          <button data-filter="denied">Denied</button>
+          <button data-filter="">All</button>
+        </div>
+        <button class="refresh" id="refresh-returns-btn">↻ Refresh</button>
+      </div>
+      <div id="returns-list"></div>
+    </div>
+
+    <div id="orders-view">
+      <div class="data-source-note">
+        Read-only, straight from the Google Sheet (or local mock data if no sheet is configured). To change an order, edit the sheet — this page doesn't write back.
+      </div>
+      <div class="toolbar">
+        <input type="search" id="orders-search" placeholder="Search order ID, email, or item…" />
+        <button class="refresh" id="refresh-orders-btn">↻ Refresh</button>
+      </div>
+      <div id="orders-list"></div>
+    </div>
   </div>
 </main>
 
@@ -183,12 +242,22 @@
   const tokenStatus = document.getElementById('token-status');
   const backendUrlInput = document.getElementById('backend-url');
   const app = document.getElementById('app');
-  const listEl = document.getElementById('list');
-  const refreshBtn = document.getElementById('refresh-btn');
-  const filterButtons = document.querySelectorAll('.filters button');
+
+  const viewTabButtons = document.querySelectorAll('.view-tabs button');
+  const returnsView = document.getElementById('returns-view');
+  const ordersView = document.getElementById('orders-view');
+
+  const returnsListEl = document.getElementById('returns-list');
+  const refreshReturnsBtn = document.getElementById('refresh-returns-btn');
+  const filterButtons = document.querySelectorAll('.toolbar .filters button');
+
+  const ordersListEl = document.getElementById('orders-list');
+  const refreshOrdersBtn = document.getElementById('refresh-orders-btn');
+  const ordersSearchInput = document.getElementById('orders-search');
 
   let adminToken = null;
   let currentFilter = 'pending';
+  let allOrders = [];
 
   backendUrlInput.value =
     window.location.protocol === 'file:' ? 'http://localhost:8000' : window.location.origin;
@@ -237,6 +306,19 @@
   tokenConnect.addEventListener('click', connect);
   tokenInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
 
+  // ---- view switching (Return Requests vs Orders) ----
+  viewTabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      viewTabButtons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      const view = btn.dataset.view;
+      returnsView.style.display = view === 'returns' ? 'block' : 'none';
+      ordersView.style.display = view === 'orders' ? 'block' : 'none';
+      if (view === 'orders' && allOrders.length === 0) loadOrders();
+    });
+  });
+
+  // ---- Return Requests view ----
   filterButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       filterButtons.forEach((b) => b.classList.remove('active'));
@@ -245,7 +327,7 @@
       loadRequests();
     });
   });
-  refreshBtn.addEventListener('click', loadRequests);
+  refreshReturnsBtn.addEventListener('click', loadRequests);
 
   function fmtMoney(n) {
     return '$' + Number(n).toFixed(2);
@@ -254,7 +336,7 @@
     try { return new Date(iso).toLocaleString(); } catch { return iso; }
   }
 
-  function renderCard(req) {
+  function renderReturnCard(req) {
     const div = document.createElement('div');
     div.className = 'req-card';
 
@@ -310,20 +392,97 @@
   }
 
   async function loadRequests() {
-    listEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    returnsListEl.innerHTML = '<div class="empty-state">Loading…</div>';
     try {
       const qs = currentFilter ? `?status=${currentFilter}` : '';
       const res = await apiFetch(`/api/admin/approvals${qs}`);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      listEl.innerHTML = '';
+      returnsListEl.innerHTML = '';
       if (!data.requests.length) {
-        listEl.innerHTML = '<div class="empty-state">No requests in this view.</div>';
+        returnsListEl.innerHTML = '<div class="empty-state">No requests in this view. (This list only shows return/refund requests submitted through the chat — it\'s separate from your order data.)</div>';
         return;
       }
-      data.requests.forEach((req) => listEl.appendChild(renderCard(req)));
+      data.requests.forEach((req) => returnsListEl.appendChild(renderReturnCard(req)));
     } catch (err) {
-      listEl.innerHTML = `<div class="empty-state">Failed to load: ${err.message}</div>`;
+      returnsListEl.innerHTML = `<div class="empty-state">Failed to load: ${err.message}</div>`;
+    }
+  }
+
+  // ---- Orders view ----
+  function renderOrderCard(order) {
+    const div = document.createElement('div');
+    div.className = 'order-card';
+
+    const itemsHtml = (order.items || [])
+      .map((it) => `<li>${it.title} by ${it.author} — x${it.qty} @ ${fmtMoney(it.price)}</li>`)
+      .join('');
+
+    const dateBits = [];
+    if (order.order_date) dateBits.push(`Ordered ${order.order_date}`);
+    if (order.shipped_date) dateBits.push(`shipped ${order.shipped_date}`);
+    if (order.delivered_date) dateBits.push(`delivered ${order.delivered_date}`);
+    if (order.estimated_delivery) dateBits.push(`est. delivery ${order.estimated_delivery}`);
+
+    div.innerHTML = `
+      <div class="order-top">
+        <span class="order-id">${order.order_id} — ${order.customer_name || order.customer_email}</span>
+        <span class="order-status ${order.status}">${order.status}</span>
+      </div>
+      <div class="order-body">
+        <span class="label">Customer:</span> ${order.customer_email}<br/>
+        <span class="label">Dates:</span> ${dateBits.join(', ') || '—'}<br/>
+        <span class="label">Items:</span>
+        <ul class="order-items">${itemsHtml || '<li>—</li>'}</ul>
+        <span class="label">Total:</span> ${fmtMoney(order.total)} &nbsp;
+        <span class="label">Shipping:</span> ${order.shipping_method || '—'}<br/>
+        ${order.tracking_number ? `<span class="label">Tracking:</span> ${order.tracking_number} (${order.carrier || 'carrier n/a'})<br/>` : ''}
+        ${order.cancellation_reason ? `<span class="label">Cancellation reason:</span> ${order.cancellation_reason}<br/>` : ''}
+      </div>
+    `;
+    return div;
+  }
+
+  function renderOrdersList(orders) {
+    ordersListEl.innerHTML = '';
+    if (!orders.length) {
+      ordersListEl.innerHTML = '<div class="empty-state">No orders found.</div>';
+      return;
+    }
+    orders.forEach((order) => ordersListEl.appendChild(renderOrderCard(order)));
+  }
+
+  function applyOrdersSearch() {
+    const q = ordersSearchInput.value.trim().toLowerCase();
+    if (!q) {
+      renderOrdersList(allOrders);
+      return;
+    }
+    const filtered = allOrders.filter((o) => {
+      const haystack = [
+        o.order_id,
+        o.customer_email,
+        o.customer_name,
+        ...(o.items || []).map((it) => it.title),
+      ].join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+    renderOrdersList(filtered);
+  }
+
+  ordersSearchInput.addEventListener('input', applyOrdersSearch);
+  refreshOrdersBtn.addEventListener('click', loadOrders);
+
+  async function loadOrders() {
+    ordersListEl.innerHTML = '<div class="empty-state">Loading…</div>';
+    try {
+      const res = await apiFetch('/api/admin/orders');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      allOrders = data.orders || [];
+      applyOrdersSearch();
+    } catch (err) {
+      ordersListEl.innerHTML = `<div class="empty-state">Failed to load: ${err.message}</div>`;
     }
   }
 })();

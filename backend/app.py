@@ -5,6 +5,7 @@ FastAPI backend exposing:
   GET  /api/admin/approvals               - list pending/all approval requests
   POST /api/admin/approvals/{id}/approve  - human approves a return/refund
   POST /api/admin/approvals/{id}/deny     - human denies a return/refund
+  GET  /api/admin/orders                  - list all orders (from the Google Sheet / local fallback)
 
 Session state (conversation history per customer) is kept in memory here
 for the prototype — swap for Redis/a DB for production so it survives
@@ -28,6 +29,7 @@ from pydantic import BaseModel
 
 from . import approval_queue
 from .agent import SupportAgent
+from .tools import data_store
 
 app = FastAPI(title="Bookly Support Agent")
 
@@ -127,6 +129,18 @@ def deny(request_id: str, body: ResolveRequest):
     if result is None:
         raise HTTPException(status_code=404, detail="Request not found")
     return result
+
+
+@app.get("/api/admin/orders", dependencies=[Depends(require_admin)])
+def list_orders():
+    """
+    All orders as currently known to the agent (from the Google Sheet if
+    configured, otherwise the local mock_data/orders.json fallback) — lets
+    staff sanity-check what the agent sees without opening the sheet.
+    Read-only; editing still happens in the sheet (or the JSON file), not
+    here.
+    """
+    return {"orders": data_store.get_all_orders()}
 
 
 @app.get("/api/health")

@@ -139,3 +139,14 @@ def test_falls_back_to_local_json_when_env_vars_unset(monkeypatch):
     order = data_store.get_order_by_id("BK-10021")
     assert order is not None
     assert order["customer_email"] == "jane.doe@example.com"
+
+
+def test_get_all_orders_returns_every_order_most_recent_first(monkeypatch):
+    monkeypatch.delenv("ORDERS_SHEET_CSV_URL", raising=False)
+    orders = data_store.get_all_orders()
+    assert len(orders) == 5
+    order_ids = {o["order_id"] for o in orders}
+    assert order_ids == {"BK-10021", "BK-10022", "BK-10023", "BK-10018", "BK-10024"}
+    # Most recent order_date first
+    dates = [o.get("order_date") or "" for o in orders]
+    assert dates == sorted(dates, reverse=True)

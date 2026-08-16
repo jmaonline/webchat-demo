@@ -53,7 +53,7 @@ export ANTHROPIC_API_KEY=sk-ant-...   # or `source .env` with your own loader
 pytest tests/ -v
 ```
 
-All 41 tests should pass — they cover the mock backend tools, the
+All 44 tests should pass — they cover the mock backend tools, the
 approval-queue human-in-the-loop flow, the agent's tool-dispatch loop
 (against a stubbed Claude client, so no API calls/cost), and the FastAPI
 endpoints.

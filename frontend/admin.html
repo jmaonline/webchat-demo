@@ -62,7 +62,6 @@
     cursor: pointer;
   }
   #token-gate button:hover, .toolbar button:hover, .view-tabs button:hover { background: var(--brand-dark); }
-  #token-gate .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
   #token-status { font-size: 13px; margin-top: 10px; }
   #token-status.ok { color: var(--approved); }
   #token-status.err { color: var(--denied); }
@@ -215,11 +214,7 @@
       <input id="token-input" type="password" placeholder="Enter your admin password" autocomplete="off" />
       <button id="token-connect">Connect</button>
     </div>
-    <div class="hint">
-      This is the same value you set as <code>ADMIN_API_TOKEN</code> in Render's environment variables.
-      It's kept in this browser tab only (never stored), and sent as a header with each request.
-      Backend URL: <input id="backend-url" type="text" style="width:auto; padding:2px 6px; font-size:12px;" />
-    </div>
+    <input id="backend-url" type="hidden" />
     <div id="token-status"></div>
   </div>
 

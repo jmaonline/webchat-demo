@@ -1,0 +1,98 @@
+{
+  "orders": [
+    {
+      "order_id": "BK-10021",
+      "customer_email": "jane.doe@example.com",
+      "customer_name": "Jane Doe",
+      "order_date": "2026-08-05",
+      "status": "delivered",
+      "delivered_date": "2026-08-09",
+      "items": [
+        {"title": "The Midnight Library", "author": "Matt Haig", "qty": 1, "price": 19.99},
+        {"title": "Project Hail Mary", "author": "Andy Weir", "qty": 1, "price": 22.50}
+      ],
+      "shipping_method": "Standard (3-5 business days)",
+      "tracking_number": "AUPOST-88213741",
+      "carrier": "Australia Post",
+      "total": 42.49,
+      "return_window_days": 30
+    },
+    {
+      "order_id": "BK-10022",
+      "customer_email": "mchen88@example.com",
+      "customer_name": "Michael Chen",
+      "order_date": "2026-08-12",
+      "status": "shipped",
+      "shipped_date": "2026-08-13",
+      "estimated_delivery": "2026-08-18",
+      "items": [
+        {"title": "Fourth Wing", "author": "Rebecca Yarros", "qty": 2, "price": 24.99}
+      ],
+      "shipping_method": "Express (1-2 business days)",
+      "tracking_number": "AUPOST-77120983",
+      "carrier": "Australia Post",
+      "total": 49.98,
+      "return_window_days": 30
+    },
+    {
+      "order_id": "BK-10023",
+      "customer_email": "jane.doe@example.com",
+      "customer_name": "Jane Doe",
+      "order_date": "2026-08-14",
+      "status": "processing",
+      "items": [
+        {"title": "Atomic Habits", "author": "James Clear", "qty": 1, "price": 21.00}
+      ],
+      "shipping_method": "Standard (3-5 business days)",
+      "tracking_number": null,
+      "carrier": null,
+      "total": 21.00,
+      "return_window_days": 30
+    },
+    {
+      "order_id": "BK-10018",
+      "customer_email": "priya.k@example.com",
+      "customer_name": "Priya Kapoor",
+      "order_date": "2026-06-30",
+      "status": "delivered",
+      "delivered_date": "2026-07-04",
+      "items": [
+        {"title": "Sapiens", "author": "Yuval Noah Harari", "qty": 1, "price": 25.00},
+        {"title": "Educated", "author": "Tara Westover", "qty": 1, "price": 20.00}
+      ],
+      "shipping_method": "Standard (3-5 business days)",
+      "tracking_number": "AUPOST-65029981",
+      "carrier": "Australia Post",
+      "total": 45.00,
+      "return_window_days": 30
+    },
+    {
+      "order_id": "BK-10024",
+      "customer_email": "mchen88@example.com",
+      "customer_name": "Michael Chen",
+      "order_date": "2026-08-15",
+      "status": "cancelled",
+      "items": [
+        {"title": "The Hobbit", "author": "J.R.R. Tolkien", "qty": 1, "price": 18.00}
+      ],
+      "shipping_method": "Standard (3-5 business days)",
+      "tracking_number": null,
+      "carrier": null,
+      "total": 18.00,
+      "cancellation_reason": "Customer requested cancellation before dispatch",
+      "return_window_days": 30
+    }
+  ],
+  "returns": [
+    {
+      "return_id": "RT-5001",
+      "order_id": "BK-10018",
+      "item_title": "Educated",
+      "status": "completed",
+      "requested_date": "2026-07-10",
+      "resolved_date": "2026-07-14",
+      "resolution": "refunded",
+      "refund_amount": 20.00
+    }
+  ]
+}
